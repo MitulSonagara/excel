@@ -114,7 +114,21 @@ alignment = Alignment(horizontal="center", vertical="center")
 for row in ws.iter_rows():
     for cell in row:
         cell.alignment = alignment
-        
+
+group_sum = 0
+start_row = 1
+
+for row_num in range(3, ws.max_row):
+    if ws[f"C{row_num}"].value is not None:
+        group_sum += int(
+            ws[f"C{row_num}"].value
+        )  # Add the value in the third cell to the group sum
+    elif ws[f"C{row_num}"].value is None:
+        print(group_sum)
+        ws[f"C{row_num}"] = group_sum
+        group_sum = 0
+
+
 wb1.save(excel_file)
 
 print(f"Excel file '{output_excel_file}' created successfully.")
