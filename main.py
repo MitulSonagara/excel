@@ -1,5 +1,7 @@
 import pandas as pd
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
 from datetime import datetime
 
 # Load the Excel file
@@ -64,6 +66,8 @@ for index, row in df.iterrows():
     if row[1] != current_subject_code:
         if current_subject_code is not None:
             new_rows.append(pd.Series([None] * len(df.columns), index=df.columns))
+            new_rows[-1][0] = "Total"
+            new_rows[-1][1] = None
         current_subject_code = row[1]
     new_rows.append(row)
 
@@ -83,4 +87,34 @@ df_with_blank_rows = df_with_blank_rows.reset_index(drop=True)
 
 print(df_with_blank_rows)
 
+output_excel_file = "output1.xlsx"
 
+# Write the DataFrame with inserted blank rows to an Excel file
+df_with_blank_rows.to_excel(output_excel_file, index=False)
+
+excel_file = "output1.xlsx"  # Replace "input1.xlsx" with the path to your Excel file
+wb1 = load_workbook(excel_file)
+
+# Select the first sheet (you can choose a specific sheet if needed)
+ws = wb1.active
+
+for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=2):
+    # Check if the first cell is "Total" and the second cell is empty
+    if row[0].value == "Total" and not row[1].value:
+        print(f"Merging cells in row {row[0].row}")
+        # Merge cells for "Total"
+        ws.merge_cells(
+            start_row=row[0].row, start_column=1, end_row=row[0].row, end_column=2
+        )
+
+# Create an Alignment object for centering
+alignment = Alignment(horizontal="center", vertical="center")
+
+# Iterate through all cells and set the alignment
+for row in ws.iter_rows():
+    for cell in row:
+        cell.alignment = alignment
+        
+wb1.save(excel_file)
+
+print(f"Excel file '{output_excel_file}' created successfully.")
