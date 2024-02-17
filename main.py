@@ -55,4 +55,10 @@ date_obj = df.iloc[0, 1]  # Assuming the date is in the second column
 formatted_date = date_obj.strftime("%d-%b-%Y")
 
 # Now the formatted date is stored in the variable formatted_date
-print(formatted_date)  
+# print(formatted_date)  
+
+df = df.drop(0)
+
+# Reset the index of the DataFrame after dropping the row
+df = df.reset_index(drop=True)
+print(df)
