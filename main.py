@@ -61,4 +61,9 @@ df = df.drop(0)
 
 # Reset the index of the DataFrame after dropping the row
 df = df.reset_index(drop=True)
+df = df.drop(df.columns[[2,3,4]], axis=1)
+df.columns = range(len(df.columns))
+
+df[[0, 1]] = df[[1, 0]]
+
 print(df)
