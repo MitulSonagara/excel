@@ -1,5 +1,6 @@
 import pandas as pd
 from openpyxl import load_workbook
+from datetime import datetime
 
 # Load the Excel file
 excel_file = "input1.xlsx"  # Replace "your_file.xlsx" with the path to your Excel file
@@ -16,7 +17,7 @@ max_col = sheet.max_column
 data = []
 
 # Iterate over rows in the sheet
-for row in sheet.iter_rows(min_row=2, max_row=max_row, min_col=1, max_col=max_col, values_only=True):
+for row in sheet.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_col, values_only=True):
     # Create a list to hold processed row data
     processed_row = []
     for cell_value in row:
@@ -29,5 +30,29 @@ for row in sheet.iter_rows(min_row=2, max_row=max_row, min_col=1, max_col=max_co
 # Convert the list of rows into a pandas DataFrame
 df = pd.DataFrame(data)
 
-# Now you have your DataFrame with merged cells handled properly
-print(df)
+# Handle vertical merged cells
+for merged_cell in sheet.merged_cells.ranges:
+    # Check if the merged cell range is vertical
+    if merged_cell.min_row != merged_cell.max_row:
+        # Get the top-left cell value
+        top_left_value = sheet.cell(row=merged_cell.min_row, column=merged_cell.min_col).value
+        # Assign the top-left cell value to all cells within the merged range vertically
+        for row_index in range(merged_cell.min_row + 1, merged_cell.max_row + 1):
+            df.iloc[row_index - 1, merged_cell.min_col - 1] = top_left_value
+
+# Now you have your DataFrame with both horizontal and vertical merged cells handled properly
+
+# Drop the first row from the DataFrame
+df = df.drop([0,1,2,4])
+
+# Reset the index of the DataFrame after dropping the row
+df = df.reset_index(drop=True)
+# print(df)
+
+date_obj = df.iloc[0, 1]  # Assuming the date is in the second column
+
+# Format the datetime object as "07-Dec-2023"
+formatted_date = date_obj.strftime("%d-%b-%Y")
+
+# Now the formatted date is stored in the variable formatted_date
+print(formatted_date)  
