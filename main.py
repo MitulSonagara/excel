@@ -3,6 +3,7 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 from datetime import datetime
+from openpyxl.styles import PatternFill
 
 # Load the Excel file
 excel_file = "input1.xlsx"  # Replace "input1.xlsx" with the path to your Excel file
@@ -78,12 +79,39 @@ df_with_blank_rows = pd.DataFrame(new_rows)
 # Reset the index of the DataFrame
 df_with_blank_rows = df_with_blank_rows.reset_index(drop=True)
 
+cols = ["Block No", "Subject Code", "TOTAL (A + B)"]
 # Manually set the column names
-df_with_blank_rows.columns = df.columns
+df_with_blank_rows.columns = cols
 
-df_with_blank_rows = df_with_blank_rows.drop(1)
+df_with_blank_rows = df_with_blank_rows.drop([0,1])
 
 df_with_blank_rows = df_with_blank_rows.reset_index(drop=True)
+
+num_columns_to_add = 3  # Change this to the number of columns you want to add
+
+# Initialize the names of the columns to add
+new_column_names = [
+    "NO OF PRESENT STUDENTS (A)",
+    "NO OF ABSENT STUDENTS (B)",
+    "UFM CASE (C)",
+]  # Change these names accordingly
+
+
+# Insert the new columns between columns 1 and 2
+for i in range(num_columns_to_add):
+    df_with_blank_rows.insert(loc=2 + i, column=new_column_names[i], value=None)
+
+num_columns_to_add_after = 3  # Change this to the number of columns you want to add
+
+# Initialize the names of the columns to add
+new_column_names_after = [
+    "SEAT NO OF ABSENT STUDENTS",
+    "SEAT NO OF UFM CASES",
+    "EMERGENCY STUDENTS IF ANY",
+]
+
+for i in range(num_columns_to_add_after):
+    df_with_blank_rows.insert(loc=6 + i, column=new_column_names_after[i], value=None)
 
 print(df_with_blank_rows)
 
@@ -115,18 +143,21 @@ for row in ws.iter_rows():
     for cell in row:
         cell.alignment = alignment
 
-group_sum = 0
-start_row = 1
 
-for row_num in range(3, ws.max_row):
-    if ws[f"C{row_num}"].value is not None:
-        group_sum += int(
-            ws[f"C{row_num}"].value
-        )  # Add the value in the third cell to the group sum
-    elif ws[f"C{row_num}"].value is None:
-        print(group_sum)
-        ws[f"C{row_num}"] = group_sum
-        group_sum = 0
+start_row = 2
+end_row = None
+yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+for row_num in range(2, ws.max_row):
+    if ws[f"F{row_num}"].value is not None:
+        end_row = row_num
+    elif ws[f"F{row_num}"].value is None:
+        for col_num in range(1,ws.max_column+1):
+            ws.cell(row=row_num,column=col_num).fill = yellow_fill
+        ws[f"F{row_num}"] = f"=SUM(F{start_row}:F{end_row})"
+        ws[f"E{row_num}"] = f"=SUM(E{start_row}:E{end_row})"
+        ws[f"D{row_num}"] = f"=SUM(D{start_row}:D{end_row})"
+        ws[f"C{row_num}"] = f"=SUM(C{start_row}:C{end_row})"
+        start_row=row_num+1
 
 
 wb1.save(excel_file)
