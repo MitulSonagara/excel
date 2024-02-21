@@ -5,49 +5,47 @@ from openpyxl.styles import Alignment
 from datetime import datetime
 from openpyxl.styles import PatternFill
 
-# Load the Excel file
-excel_file = "input1.xlsx"  # Replace "input1.xlsx" with the path to your Excel file
-wb = load_workbook(excel_file)
+def excel_to_df(path):
+    wb = load_workbook(path)
 
-# Select the first sheet (you can choose a specific sheet if needed)
-sheet = wb.active
+    # Select the first sheet (you can choose a specific sheet if needed)
+    sheet = wb.active
 
-# Get the max row and max column count from the sheet
-max_row = sheet.max_row
-max_col = sheet.max_column
+    # Get the max row and max column count from the sheet
+    max_row = sheet.max_row
+    max_col = sheet.max_column
 
-# Initialize an empty list to hold the data
-data = []
+    # Initialize an empty list to hold the data
+    data = []
 
-# Iterate over rows in the sheet
-for row in sheet.iter_rows(
-    min_row=1, max_row=max_row, min_col=1, max_col=max_col, values_only=True
-):
-    # Create a list to hold processed row data
-    processed_row = []
-    for cell_value in row:
-        if cell_value is None:
-            # If cell is None, propagate value from the top-left cell of the merged region
-            cell_value = processed_row[-1] if processed_row else None
-        processed_row.append(cell_value)
-    data.append(processed_row)
+    for row in sheet.iter_rows(
+        min_row=1, max_row=max_row, min_col=1, max_col=max_col, values_only=True
+    ):
+        # Create a list to hold processed row data
+        processed_row = []
+        for cell_value in row:
+            if cell_value is None:
+                # If cell is None, propagate value from the top-left cell of the merged region
+                cell_value = processed_row[-1] if processed_row else None
+            processed_row.append(cell_value)
+        data.append(processed_row)
 
-# Convert the list of rows into a pandas DataFrame
-df = pd.DataFrame(data)
+    df = pd.DataFrame(data)
 
-# Handle vertical merged cells
-for merged_cell in sheet.merged_cells.ranges:
-    # Check if the merged cell range is vertical
-    if merged_cell.min_row != merged_cell.max_row:
-        # Get the top-left cell value
-        top_left_value = sheet.cell(
-            row=merged_cell.min_row, column=merged_cell.min_col
-        ).value
-        # Assign the top-left cell value to all cells within the merged range vertically
-        for row_index in range(merged_cell.min_row + 1, merged_cell.max_row + 1):
-            df.iloc[row_index - 1, merged_cell.min_col - 1] = top_left_value
+    for merged_cell in sheet.merged_cells.ranges:
+        # Check if the merged cell range is vertical
+        if merged_cell.min_row != merged_cell.max_row:
+            # Get the top-left cell value
+            top_left_value = sheet.cell(
+                row=merged_cell.min_row, column=merged_cell.min_col
+            ).value
+            # Assign the top-left cell value to all cells within the merged range vertically
+            for row_index in range(merged_cell.min_row + 1, merged_cell.max_row + 1):
+                df.iloc[row_index - 1, merged_cell.min_col - 1] = top_left_value
 
-# Now you have your DataFrame with both horizontal and vertical merged cells handled properly
+    return df
+
+df = excel_to_df("input1.xlsx")
 
 # Drop the unnecessary rows and columns
 df = df.drop([0, 1, 2, 3, 4])
@@ -82,28 +80,21 @@ df_with_blank_rows = df_with_blank_rows.reset_index(drop=True)
 cols = ["Block No", "Subject Code", "TOTAL (A + B)"]
 # Manually set the column names
 df_with_blank_rows.columns = cols
-
 df_with_blank_rows = df_with_blank_rows.drop([0,1])
-
 df_with_blank_rows = df_with_blank_rows.reset_index(drop=True)
 
-num_columns_to_add = 3  # Change this to the number of columns you want to add
-
-# Initialize the names of the columns to add
+num_columns_to_add = 3  
 new_column_names = [
     "NO OF PRESENT STUDENTS (A)",
     "NO OF ABSENT STUDENTS (B)",
     "UFM CASE (C)",
 ]  # Change these names accordingly
 
-
 # Insert the new columns between columns 1 and 2
 for i in range(num_columns_to_add):
     df_with_blank_rows.insert(loc=2 + i, column=new_column_names[i], value=None)
 
-num_columns_to_add_after = 3  # Change this to the number of columns you want to add
-
-# Initialize the names of the columns to add
+num_columns_to_add_after = 3  
 new_column_names_after = [
     "SEAT NO OF ABSENT STUDENTS",
     "SEAT NO OF UFM CASES",
@@ -113,7 +104,7 @@ new_column_names_after = [
 for i in range(num_columns_to_add_after):
     df_with_blank_rows.insert(loc=6 + i, column=new_column_names_after[i], value=None)
 
-print(df_with_blank_rows)
+# print(df_with_blank_rows)
 
 output_excel_file = "output1.xlsx"
 
