@@ -32,28 +32,45 @@ def abc(path):
     return df
 
 
-df = abc("emergency.xlsx")
-df = df.drop(0)
-df = df.drop(df.columns[[0, 1, 2, 6, 7, 8]], axis=1)
-df = df.reset_index(drop=True)
-df.columns = range(len(df.columns))
-df[[0, 2]] = df[[2, 0]]
-cols = ["block no", "subject code", "number"]
-df.columns = cols
+df1 = abc("emergency.xlsx")
+df1 = df1.drop(0)
+df1 = df1.drop(df1.columns[[0, 1, 2, 6, 7, 8]], axis=1)
+df1 = df1.reset_index(drop=True)
+df1.columns = range(len(df1.columns))
+df1[[0, 2]] = df1[[2, 0]]
 
-grouped_df = (
-    df.groupby(["block no", "subject code"])
-    .agg({"number": lambda x: "\n".join(map(str, x))})
+grouped_df1 = (
+    df1.groupby([0, 1])
+    .agg({2: lambda x: "\n".join(map(str, x))})
     .reset_index()
 )
 
-# Adding the 'total' column to grouped_df
-grouped_df["total"] = df.groupby(["block no", "subject code"]).size().values
+# Adding the 'total' column to grouped_df1
+grouped_df1[3] = df1.groupby([0, 1]).size().values
 
 # Correcting the column assignments
-grouped_df[["number", "total"]] = grouped_df[["total", "number"]]
-cols = ["block no", "subject code", "total","number"]
-grouped_df.columns = cols
+grouped_df1[[2,3]] = grouped_df1[[3, 2]]
 
 
-print(grouped_df)
+co = [4,5,6,7,8]
+for i in range(5):
+    grouped_df1.insert(loc=3 + i, column=co[i], value=None)
+grouped_df1.columns = range(len(grouped_df1.columns))
+
+new_row = pd.DataFrame(
+    {
+        0: ["BLOCK NO"],
+        1: ["SUBJECT CODE"],
+        2: ["TOTAL PRESENT STUDENTS (A)"],
+        3:["NO OF ABSENT STUDENTS (B)"],
+        4:["UFM CASE(C)"],
+        5:["TOTAL (A+B+C)"],
+        6:["SEAT NO OF ABSENT STUDENTS"],
+        7:["SEAT NO OF UFM CASES"],
+        8: ["EMERGENCY STUDENTS IF ANY"],
+        
+    }
+)
+grouped_df1 = pd.concat([new_row, grouped_df1]).reset_index(drop=True)
+
+print(grouped_df1)

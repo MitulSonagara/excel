@@ -58,6 +58,92 @@ df.columns = range(len(df.columns))
 # Swap columns 0 and 1
 df[[0, 1]] = df[[1, 0]]
 
+co = [3,4, 5, 6, 7, 8]
+for i in range(6):
+    df.insert(loc=3 + i, column=co[i], value=None)
+df.columns = range(len(df.columns))
+df1=df.drop([0,34])
+
+# new_row = pd.DataFrame(
+#     {
+#         0: ["BLOCK NO"],
+#         1: ["SUBJECT CODE"],
+#         2: ["TOTAL PRESENT STUDENTS (A)"],
+#         3: ["NO OF ABSENT STUDENTS (B)"],
+#         4: ["UFM CASE(C)"],
+#         5: ["TOTAL (A + B + C)"],
+#         6: ["SEAT NO OF ABSENT STUDENTS"],
+#         7: ["SEAT NO OF UFM CASES"],
+#         8: ["EMERGENCY STUDENTS IF ANY"],
+#     }
+# )
+# df = pd.concat([new_row, df]).reset_index(drop=True)
+
+
+df = excel_to_df("emergency.xlsx")
+df = df.drop(0)
+df = df.drop(df.columns[[0, 1, 2, 6, 7, 8]], axis=1)
+df = df.reset_index(drop=True)
+df.columns = range(len(df.columns))
+df[[0, 2]] = df[[2, 0]]
+
+df2 = (
+    df.groupby([0, 1]).agg({2: lambda x: "\n".join(map(str, x))}).reset_index()
+)
+
+# Adding the 'total' column to df2
+df2[3] = df.groupby([0, 1]).size().values
+
+# Correcting the column assignments
+df2[[2, 3]] = df2[[3, 2]]
+
+
+co = [4, 5, 6, 7, 8]
+for i in range(5):
+    df2.insert(loc=3 + i, column=co[i], value=None)
+df2.columns = range(len(df2.columns))
+
+# print(df2)
+
+# grouped_df2 = pd.concat([new_row, grouped_df1]).reset_index(drop=True)
+
+
+# Grouping df1 by 'subject_code' (using column index)
+groups_df1 = df1.groupby(df1.columns[1])  # Change index as per your data
+
+# Flag to check if any row from df2 is inserted into df1
+inserted_flag = False
+
+# Iterate over rows of df2
+for index, row in df2.iterrows():
+    subject_code = row[df2.columns[1]]  # Change index as per your data
+
+    # Find the corresponding group in df1
+    if subject_code in groups_df1.groups:
+        group_index = groups_df1.groups[subject_code]
+
+        # Find the last index of this group
+        last_index = max(group_index)
+
+        # Insert after the last occurrence of this group
+        df1 = pd.concat(
+            [df1.iloc[: last_index + 1], row.to_frame().T, df1.iloc[last_index + 1 :]]
+        ).reset_index(drop=True)
+
+        # Set the flag to True since a row from df2 is inserted into df1
+        inserted_flag = True
+    else:
+        # If subject_code is not found in df1, append the row to the end
+        df1 = df1._append(row, ignore_index=True)
+        inserted_flag = True
+
+# If no row from df2 is inserted into df1, it means the 'subject_code' from df2 is completely different
+# In this case, add all rows from df2 to the end of df1
+if not inserted_flag:
+    df1 = pd.concat([df1, df2], ignore_index=True)
+
+print(df1)
+
 # Insert a blank row after each group of subject code
 current_subject_code = None
 new_rows = []
@@ -105,6 +191,7 @@ for i in range(num_columns_to_add_after):
     df_with_blank_rows.insert(loc=6 + i, column=new_column_names_after[i], value=None)
 
 # print(df_with_blank_rows)
+
 
 output_excel_file = "output1.xlsx"
 
