@@ -1,14 +1,14 @@
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
-from openpyxl.styles import Alignment
-from datetime import datetime
+from openpyxl.styles import Alignment, Border, Side
 from openpyxl.styles import PatternFill
+from openpyxl.styles import Font
 
 def excel_to_df(path):
     wb = load_workbook(path)
 
-    # Select the first sheet (you can choose a specific sheet if needed)
+    # Select the first ws (you can choose a specific sheet if needed)
     sheet = wb.active
 
     # Get the max row and max column count from the sheet
@@ -45,104 +45,81 @@ def excel_to_df(path):
 
     return df
 
-df = excel_to_df("input1.xlsx")
+def process_df1(df):
+    df = df.drop([0, 1, 2, 3, 4])
+    df = df.drop(df.columns[[2, 3, 4]], axis=1)
 
-# Drop the unnecessary rows and columns
-df = df.drop([0, 1, 2, 3, 4])
-df = df.drop(df.columns[[2, 3, 4]], axis=1)
+    # Reset the index of the DataFrame after dropping rows and columns
+    df = df.reset_index(drop=True)
+    df.columns = range(len(df.columns))
 
-# Reset the index of the DataFrame after dropping rows and columns
+    # Swap columns 0 and 1
+    df[[0, 1]] = df[[1, 0]]
+
+    co = [3, 4, 5, 6, 7, 8]
+    for i in range(6):
+        df.insert(loc=3 + i, column=co[i], value=None)
+    df.columns = range(len(df.columns))
+    df = df.drop([0, 34])
+    return df
+
+def process_df2(df):
+    df = df.drop(0)
+    df = df.drop(df.columns[[0, 1, 2, 6, 7, 8]], axis=1)
+    df = df.reset_index(drop=True)
+    df.columns = range(len(df.columns))
+    df[[0, 2]] = df[[2, 0]]
+
+    df2 = df.groupby([0, 1]).agg({2: lambda x: "\n".join(map(str, x))}).reset_index()
+
+    # Adding the 'total' column to df2
+    df2[3] = df.groupby([0, 1]).size().values
+
+    # Correcting the column assignments
+    df2[[2, 3]] = df2[[3, 2]]
+
+    co = [4, 5, 6, 7, 8]
+    for i in range(5):
+        df2.insert(loc=3 + i, column=co[i], value=None)
+    df2.columns = range(len(df2.columns))
+
+    def modify_block_no(row):
+        return str(row) + '/E'
+
+    df2[0] = df2[0].apply(modify_block_no)
+
+    return df2
+
+df1 = excel_to_df("input1.xlsx")
+df1 = process_df1(df1)
+df1 = pd.DataFrame(df1)
+
+df2 = excel_to_df("emergency.xlsx")
+df2 = process_df2(df2)
+df2 = pd.DataFrame(df2)
+
+df1[1] = df1[1].astype("int64")
+df2[1] = df2[1].astype("int64")
+
+current_subject_code = None
+new_rows = []
+for index, row in df1.iterrows():
+    if row[1] != current_subject_code:
+        if current_subject_code is not None:
+            for index, row1 in df2.iterrows():
+                subject = row1[1]
+                if current_subject_code == subject:
+                    new_rows.append(row1)
+                    df2 = df2.drop(index)
+                    df2 = df2.reset_index(drop=True)
+        current_subject_code = row[1]
+    new_rows.append(row)
+
+
+df = pd.DataFrame(new_rows)
 df = df.reset_index(drop=True)
-df.columns = range(len(df.columns))
-
-# Swap columns 0 and 1
-df[[0, 1]] = df[[1, 0]]
-
-co = [3,4, 5, 6, 7, 8]
-for i in range(6):
-    df.insert(loc=3 + i, column=co[i], value=None)
-df.columns = range(len(df.columns))
-df1=df.drop([0,34])
-
-# new_row = pd.DataFrame(
-#     {
-#         0: ["BLOCK NO"],
-#         1: ["SUBJECT CODE"],
-#         2: ["TOTAL PRESENT STUDENTS (A)"],
-#         3: ["NO OF ABSENT STUDENTS (B)"],
-#         4: ["UFM CASE(C)"],
-#         5: ["TOTAL (A + B + C)"],
-#         6: ["SEAT NO OF ABSENT STUDENTS"],
-#         7: ["SEAT NO OF UFM CASES"],
-#         8: ["EMERGENCY STUDENTS IF ANY"],
-#     }
-# )
-# df = pd.concat([new_row, df]).reset_index(drop=True)
-
-
-df = excel_to_df("emergency.xlsx")
-df = df.drop(0)
-df = df.drop(df.columns[[0, 1, 2, 6, 7, 8]], axis=1)
-df = df.reset_index(drop=True)
-df.columns = range(len(df.columns))
-df[[0, 2]] = df[[2, 0]]
-
-df2 = (
-    df.groupby([0, 1]).agg({2: lambda x: "\n".join(map(str, x))}).reset_index()
-)
-
-# Adding the 'total' column to df2
-df2[3] = df.groupby([0, 1]).size().values
-
-# Correcting the column assignments
-df2[[2, 3]] = df2[[3, 2]]
-
-
-co = [4, 5, 6, 7, 8]
-for i in range(5):
-    df2.insert(loc=3 + i, column=co[i], value=None)
-df2.columns = range(len(df2.columns))
-
-# print(df2)
-
-# grouped_df2 = pd.concat([new_row, grouped_df1]).reset_index(drop=True)
-
-
-# Grouping df1 by 'subject_code' (using column index)
-groups_df1 = df1.groupby(df1.columns[1])  # Change index as per your data
-
-# Flag to check if any row from df2 is inserted into df1
-inserted_flag = False
-
-# Iterate over rows of df2
-for index, row in df2.iterrows():
-    subject_code = row[df2.columns[1]]  # Change index as per your data
-
-    # Find the corresponding group in df1
-    if subject_code in groups_df1.groups:
-        group_index = groups_df1.groups[subject_code]
-
-        # Find the last index of this group
-        last_index = max(group_index)
-
-        # Insert after the last occurrence of this group
-        df1 = pd.concat(
-            [df1.iloc[: last_index + 1], row.to_frame().T, df1.iloc[last_index + 1 :]]
-        ).reset_index(drop=True)
-
-        # Set the flag to True since a row from df2 is inserted into df1
-        inserted_flag = True
-    else:
-        # If subject_code is not found in df1, append the row to the end
-        df1 = df1._append(row, ignore_index=True)
-        inserted_flag = True
-
-# If no row from df2 is inserted into df1, it means the 'subject_code' from df2 is completely different
-# In this case, add all rows from df2 to the end of df1
-if not inserted_flag:
-    df1 = pd.concat([df1, df2], ignore_index=True)
-
-print(df1)
+df = pd.concat([df, df2], ignore_index=True)
+df[[3,4]]=0
 
 # Insert a blank row after each group of subject code
 current_subject_code = None
@@ -156,88 +133,169 @@ for index, row in df.iterrows():
         current_subject_code = row[1]
     new_rows.append(row)
 
+new_rows.append(pd.Series([None] * len(df.columns), index=df.columns))
+new_rows[-1][0] = "Total"
+new_rows[-1][1] = None
 
 # Create a new DataFrame with inserted blank rows
 df_with_blank_rows = pd.DataFrame(new_rows)
-
 # Reset the index of the DataFrame
 df_with_blank_rows = df_with_blank_rows.reset_index(drop=True)
 
-cols = ["Block No", "Subject Code", "TOTAL (A + B)"]
+cols = [
+    "BLOCK\nNO.",
+    "SUBJECT\nCODE",
+    "NO OF\nPRESENT\nSTUDENTS\n(A)",
+    "NO OF\nABSENT\nSTUDENTS\n(B)",
+    "UFM\nCASE\n(C)",
+    "TOTAL\n(A + B + C)",
+    "SEAT NO\nOF ABSENT\nSTUDENTS",
+    "SEAT NO\nOF UFM\nCASES",
+    "EMERGENCY\nSTUDENTS\nIF ANY",
+]
 # Manually set the column names
 df_with_blank_rows.columns = cols
-df_with_blank_rows = df_with_blank_rows.drop([0,1])
-df_with_blank_rows = df_with_blank_rows.reset_index(drop=True)
-
-num_columns_to_add = 3  
-new_column_names = [
-    "NO OF PRESENT STUDENTS (A)",
-    "NO OF ABSENT STUDENTS (B)",
-    "UFM CASE (C)",
-]  # Change these names accordingly
-
-# Insert the new columns between columns 1 and 2
-for i in range(num_columns_to_add):
-    df_with_blank_rows.insert(loc=2 + i, column=new_column_names[i], value=None)
-
-num_columns_to_add_after = 3  
-new_column_names_after = [
-    "SEAT NO OF ABSENT STUDENTS",
-    "SEAT NO OF UFM CASES",
-    "EMERGENCY STUDENTS IF ANY",
-]
-
-for i in range(num_columns_to_add_after):
-    df_with_blank_rows.insert(loc=6 + i, column=new_column_names_after[i], value=None)
-
-# print(df_with_blank_rows)
-
 
 output_excel_file = "output1.xlsx"
-
-# Write the DataFrame with inserted blank rows to an Excel file
 df_with_blank_rows.to_excel(output_excel_file, index=False)
-
 excel_file = "output1.xlsx"  # Replace "input1.xlsx" with the path to your Excel file
 wb1 = load_workbook(excel_file)
-
 # Select the first sheet (you can choose a specific sheet if needed)
 ws = wb1.active
+
+# Define the desired widths for each column
+column_widths = {"A": 8, "B": 15, "C": 12,"D":12,"E":6,"F":12,"G":32,"H":10,"I":21}  # Example widths for columns A, B, and C
+
+# Set the width of columns based on the defined widths
+for col_letter, width in column_widths.items():
+    ws.column_dimensions[col_letter].width = width
+
+# Add borders to all cells
+border = Border(
+    left=Side(style="thin"),
+    right=Side(style="thin"),
+    top=Side(style="thin"),
+    bottom=Side(style="thin"),
+)
+
+
+ws.move_range("A1:{}{}".format(get_column_letter(ws.max_column), ws.max_row), rows=6)
+
+ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ws.max_column)
+ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=ws.max_column)
+ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=6)
+ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=ws.max_column)
+ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=ws.max_column)
+ws.merge_cells(start_row=3, start_column=7, end_row=3, end_column=ws.max_column)
+ws.merge_cells(start_row=6, start_column=1, end_row=6, end_column=ws.max_column)
+
+
+# Write data to the new row
+ws["A1"] = "GUJARAT TECHNOLOGICAL UNIVERSITY"
+ws["A2"] = "AHMEDABAD - GANDHINAGAR"
+ws["A3"] = "DATE : "
+ws["G3"] = "SESSION : "
+ws["A4"] = "COLLEGE CODE: 017 "
+ws["A5"] = "COLLEGE NAME: Vishwakarama Government Engineering College, Chandkheda "
+# Add more columns as needed
 
 for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=2):
     # Check if the first cell is "Total" and the second cell is empty
     if row[0].value == "Total" and not row[1].value:
-        print(f"Merging cells in row {row[0].row}")
         # Merge cells for "Total"
         ws.merge_cells(
             start_row=row[0].row, start_column=1, end_row=row[0].row, end_column=2
         )
 
-# Create an Alignment object for centering
-alignment = Alignment(horizontal="center", vertical="center")
-
-# Iterate through all cells and set the alignment
-for row in ws.iter_rows():
+for row in ws.iter_rows(
+    min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column
+):
     for cell in row:
-        cell.alignment = alignment
+        cell.alignment = Alignment(
+            wrap_text=True, vertical="center", horizontal="center"
+        )
 
-
+total = []
 start_row = 2
 end_row = None
 yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-for row_num in range(2, ws.max_row):
-    if ws[f"F{row_num}"].value is not None:
-        end_row = row_num
-    elif ws[f"F{row_num}"].value is None:
-        for col_num in range(1,ws.max_column+1):
-            ws.cell(row=row_num,column=col_num).fill = yellow_fill
+for row_num in range(8, ws.max_row + 1):
+    # Check if the cell in column A is "Total"
+    if ws[f"A{row_num}"].value == "Total":
+        total.append(row_num)
+        # Apply yellow fill to the entire row
+        for col_num in range(1, ws.max_column + 1):
+            ws.cell(row=row_num, column=col_num).fill = yellow_fill
+
+        # Calculate sums and update cells
         ws[f"F{row_num}"] = f"=SUM(F{start_row}:F{end_row})"
         ws[f"E{row_num}"] = f"=SUM(E{start_row}:E{end_row})"
         ws[f"D{row_num}"] = f"=SUM(D{start_row}:D{end_row})"
         ws[f"C{row_num}"] = f"=SUM(C{start_row}:C{end_row})"
-        start_row=row_num+1
 
+        # Update start_row for the next section
+        start_row = row_num + 1
+    else:
+        # Update end_row if the value in column F is not 0
+        if ws[f"F{row_num}"].value != 0:
+            end_row = row_num
+
+print(total)
+
+for row_num in range(8, ws.max_row + 1):
+    ws[f"F{row_num}"] = f"=SUM(C{row_num}:E{row_num})"
+
+last_row = ws.max_row
+new_row = last_row + 1
+
+ws.merge_cells(start_row=new_row, start_column=1, end_row=new_row, end_column=2)
+ws[f"A{new_row}"] = "GRAND TOTAL"
+
+for char in ("C","D","E","F"):
+    # Convert row numbers to Excel-style cell references (e.g., 15 -> 'C15')
+    cell_references = [f"{char}{row_num}" for row_num in total]
+    # Join the cell references with '+' to create the formula string
+    formula_string = ",".join(cell_references)
+    # Insert the formula in cell C66
+    ws[f"{char}{new_row}"] = f"=SUM({formula_string})"
+
+
+font_style = Font(name="Calibri Light", size=12,bold=True)
+
+# Set the height of the first five rows to 16
+for row_num in range(1, 7):
+    ws.row_dimensions[row_num].height = 16
+
+# Iterate through the first five rows and set the font style and size for each cell
+for row in ws.iter_rows(min_row=1, max_row=5):
+    for cell in row:
+        cell.font = font_style
+
+for row in ws.iter_rows(
+    min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column
+):
+    for cell in row:
+        cell.alignment = Alignment(
+            wrap_text=True, vertical="center", horizontal="center"
+        )
+
+for row_num in range(3, 7):  # Rows 3, 4, and 5
+    for cell in ws[row_num]:  # Iterate through cells in the row
+        cell.alignment = Alignment(horizontal="left")
+
+ws["G3"].alignment = Alignment(horizontal="right")
+
+for row in ws.iter_rows():
+    for cell in row:
+        cell.border = border
+
+last_row = ws.max_row
+for cell in ws[last_row]:
+    cell.fill = PatternFill(start_color="FFCCCB", end_color="FFCCCB", fill_type="solid")
+    cell.font = font_style
 
 wb1.save(excel_file)
 
-print(f"Excel file '{output_excel_file}' created successfully.")
+# wb1.save(excel_file)
+
+# print(f"Excel file '{output_excel_file}' created successfully.")
